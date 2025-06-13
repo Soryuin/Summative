@@ -1,29 +1,23 @@
 /*
- * Wordle game logic class
- * Handles guess checking, game progress, and feedback generation.
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package wordle;
 
-import java.util.Random;
-
 /**
  *
- * 
- * Author: azhan52
+ * @author azhan52
  */
-public class wordleGame {
-    private String[] wordList;       // List of valid words to choose from
-    private String secretWord;       // The word to guess
-    private int maxAttempts;         // Maximum number of allowed guesses
-    private int currentAttempt;      // Current guess count
-    private String[] guesses;        // Array to store all guesses
+import java.util.Random;
 
-    /**
-     * Constructor to initialize the game with a word list and maximum attempts.
-     *
-     * @param wordList List of possible secret words
-     * @param maxAttempts Maximum number of guesses allowed
-     */
+public class wordleGame {
+
+    private String[] wordList;
+    private String secretWord;
+    private final int maxAttempts;
+    private int currentAttempt;
+    private String[] guesses;
+
     public wordleGame(String[] wordList, int maxAttempts) {
         this.wordList = wordList;
         this.maxAttempts = maxAttempts;
@@ -31,10 +25,6 @@ public class wordleGame {
         this.guesses = new String[maxAttempts];
     }
 
-    /**
-     * Starts a new game by randomly selecting a secret word
-     * and resetting the attempt counter and guess list.
-     */
     public void startGame() {
         Random random = new Random();
         secretWord = wordList[random.nextInt(wordList.length)];
@@ -43,14 +33,17 @@ public class wordleGame {
     }
 
     /**
-     * Checks the player's guess against the secret word and returns feedback.
-     * 'G' = correct letter in correct place (green)
-     * 'Y' = correct letter in wrong place (yellow)
-     * '-' = incorrect letter (gray)
+     * Checks the user's guess and returns feedback. If guess is invalid or
+     * attempts are exhausted, returns null.
      */
     public feedback checkGuess(String guess) {
         if (guess == null || guess.length() != secretWord.length()) {
             return null; // Invalid guess length
+        }
+
+        // Reject if guess contains non-letter characters (e.g., numbers or symbols)
+        if (!guess.matches("[a-zA-Z]+")) {
+            return null; // Invalid characters in guess
         }
 
         if (currentAttempt >= maxAttempts) {
@@ -59,24 +52,30 @@ public class wordleGame {
 
         char[] result = new char[secretWord.length()];
         boolean[] secretUsed = new boolean[secretWord.length()];
+        boolean[] guessUsed = new boolean[secretWord.length()];
 
-        // First pass: check for correct letters in correct positions (green)
+        // First pass: check for correct letter in correct position (green)
         for (int i = 0; i < guess.length(); i++) {
             if (guess.charAt(i) == secretWord.charAt(i)) {
                 result[i] = 'G';
                 secretUsed[i] = true;
+                guessUsed[i] = true;
             } else {
                 result[i] = '-';
             }
         }
 
-        // Second pass: check for correct letters in wrong positions (yellow)
+        // Second pass: check for correct letter in wrong position (yellow)
         for (int i = 0; i < guess.length(); i++) {
-            if (result[i] == 'G') continue;
+            if (result[i] == 'G') {
+                continue;
+            }
+
             for (int j = 0; j < secretWord.length(); j++) {
-                if (!secretUsed[j] && guess.charAt(i) == secretWord.charAt(j)) {
+                if (!secretUsed[j] && !guessUsed[i] && guess.charAt(i) == secretWord.charAt(j)) {
                     result[i] = 'Y';
                     secretUsed[j] = true;
+                    guessUsed[i] = true;
                     break;
                 }
             }
@@ -84,41 +83,25 @@ public class wordleGame {
 
         guesses[currentAttempt++] = guess;
         return new feedback(guess, result);
+
     }
 
-    /**
-     * Checks if the player's guess matches the secret word.
-     */
     public boolean isCorrectGuess(String guess) {
         return guess != null && guess.equals(secretWord);
     }
 
-    /**
-     * Checks whether the game is over based on the number of attempts.
-     */
     public boolean isGameOver() {
         return currentAttempt >= maxAttempts;
     }
 
-    /**
-     * Returns the secret word.
-     *
-     * @return The secret word as a String
-     */
     public String getSecretWord() {
         return secretWord;
     }
 
-    /**
-     * Returns the number of guesses made so far.
-     */
     public int getCurrentAttempt() {
         return currentAttempt;
     }
 
-    /**
-     * Returns the maximum number of guesses allowed.
-     */
     public int getMaxAttempts() {
         return maxAttempts;
     }
