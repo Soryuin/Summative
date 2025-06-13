@@ -18,7 +18,7 @@ public class wordLoader {
     
     public String[] loadWords(String filename) {
         List<String> words = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader("holder file name"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
             String line;
             while ((line = br.readLine()) != null) {
                 words.add(line.trim());
