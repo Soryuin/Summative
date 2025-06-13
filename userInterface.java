@@ -9,190 +9,222 @@ package wordle;
  * @author azhan52
  */
 
-import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class userInterface {
 
-    private final int WORD_LENGTH;
-    private final int MAX_ATTEMPTS;
+    private int wordLength;
+    private int maxAttempts;
+    private wordleGame game;
 
     private Stage stage;
-    private GridPane guessesGrid;
+    private GridPane grid;
     private TextField inputField;
     private Button submitButton;
-    private Label statusLabel;
+    private Label messageLabel;
 
-    private int currentAttempt = 0;
+    private int currentRow = 0;
+    private Label[][] letterLabels;
 
-    private String userInput = null;
-    private final Object lock = new Object();
+    // Keyboard keys and their buttons
+    private final String[] keyboardRows = {
+            "QWERTYUIOP",
+            "ASDFGHJKL",
+            "ZXCVBNM"
+    };
+    private Map<Character, Button> keyboardButtons = new HashMap<>();
 
     public userInterface(int wordLength, int maxAttempts) {
-        this.WORD_LENGTH = wordLength;
-        this.MAX_ATTEMPTS = maxAttempts;
+        this.wordLength = wordLength;
+        this.maxAttempts = maxAttempts;
+        this.letterLabels = new Label[maxAttempts][wordLength];
+    }
+
+    public void setGame(wordleGame game) {
+        this.game = game;
     }
 
     public void start(Stage primaryStage) {
-        stage = primaryStage;
-        VBox root = new VBox(10);
-        root.setAlignment(Pos.CENTER);
-        root.setStyle("-fx-padding: 20;");
+        this.stage = primaryStage;
+        primaryStage.setTitle("Wordle Game");
 
-        statusLabel = new Label("Welcome! Guess the " + WORD_LENGTH + "-letter word.");
-        statusLabel.setFont(Font.font("Arial", 20));
+        BorderPane root = new BorderPane();
 
-        guessesGrid = new GridPane();
-        guessesGrid.setHgap(5);
-        guessesGrid.setVgap(5);
-        guessesGrid.setAlignment(Pos.CENTER);
+        // Grid for guesses
+        grid = new GridPane();
+        grid.setHgap(5);
+        grid.setVgap(5);
+        grid.setAlignment(Pos.CENTER);
 
-        // Initialize grid with empty labels
-        for (int row = 0; row < MAX_ATTEMPTS; row++) {
-            for (int col = 0; col < WORD_LENGTH; col++) {
-                Label label = createLetterLabel(" ");
-                guessesGrid.add(label, col, row);
+        for (int row = 0; row < maxAttempts; row++) {
+            for (int col = 0; col < wordLength; col++) {
+                Label lbl = new Label(" ");
+                lbl.setPrefSize(40, 40);
+                lbl.setAlignment(Pos.CENTER);
+                lbl.setFont(Font.font("Comic Sans MS", 24));
+                lbl.setStyle("-fx-border-color: black; -fx-border-width: 2px;");
+                grid.add(lbl, col, row);
+                letterLabels[row][col] = lbl;
             }
         }
 
-        inputField = new TextField();
-        inputField.setFont(Font.font(18));
-        inputField.setPrefWidth(200);
-        inputField.setAlignment(Pos.CENTER);
-
-        submitButton = new Button("Submit");
-        submitButton.setDefaultButton(true);
-
-        HBox inputBox = new HBox(10, inputField, submitButton);
+        // Input box
+        HBox inputBox = new HBox(10);
         inputBox.setAlignment(Pos.CENTER);
 
-        root.getChildren().addAll(statusLabel, guessesGrid, inputBox);
+        inputField = new TextField();
+        inputField.setPrefWidth(wordLength * 40);
+        inputField.setFont(Font.font("Comic Sans MS", 18));
+        inputField.setPromptText("Enter your guess");
 
-        submitButton.setOnAction(e -> onSubmit());
-        inputField.setOnAction(e -> onSubmit());
+        submitButton = new Button("Submit");
+        submitButton.setFont(Font.font("Comic Sans MS", 18));
 
-        Scene scene = new Scene(root, 400, 400);
-        stage.setScene(scene);
-        stage.setTitle("Wordle JavaFX");
-        stage.show();
+        inputBox.getChildren().addAll(inputField, submitButton);
 
-        inputField.requestFocus();
+        // Message label
+        messageLabel = new Label("Welcome to Wordle!");
+        messageLabel.setFont(Font.font("Comic Sans MS", 16));
+        messageLabel.setTextFill(Color.BLUE);
+        messageLabel.setAlignment(Pos.CENTER);
+       
+        // Keyboard pane
+        VBox keyboardPane = new VBox(5);
+        keyboardPane.setAlignment(Pos.CENTER);
+        keyboardPane.setPadding(new Insets(10, 0, 20, 0));
+
+        for (String row : keyboardRows) {
+            HBox rowBox = new HBox(5);
+            rowBox.setAlignment(Pos.CENTER);
+            for (char c : row.toCharArray()) {
+                Button keyButton = new Button(String.valueOf(c));
+                keyButton.setPrefSize(35, 45);
+                keyButton.setFont(Font.font("Comic Sans MS", 14));
+                keyButton.setFocusTraversable(false);
+                keyButton.setDisable(true); // not clickable, just display
+                
+                keyboardButtons.put(c, keyButton);
+                rowBox.getChildren().add(keyButton);
+            }
+            keyboardPane.getChildren().add(rowBox);
+        }
+
+        root.setTop(messageLabel);
+        BorderPane.setAlignment(messageLabel, Pos.CENTER);
+        BorderPane.setMargin(messageLabel, new Insets(10, 0, 10, 0));
+
+        root.setCenter(grid);
+        root.setBottom(new VBox(inputBox, keyboardPane));
+
+        Scene scene = new Scene(root, wordLength * 50 + 100, maxAttempts * 60 + 300);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+
+        // Submit button action
+        submitButton.setOnAction(e -> handleSubmit());
+
+        // Submit on Enter key press
+        inputField.setOnAction(e -> handleSubmit());
     }
 
-    private Label createLetterLabel(String letter) {
-        Label label = new Label(letter);
-        label.setPrefSize(40, 40);
-        label.setAlignment(Pos.CENTER);
-        label.setFont(Font.font("Monospaced", 24));
-        label.setStyle("-fx-border-color: gray; -fx-border-width: 2; -fx-background-color: lightgray;");
-        return label;
-    }
-
-    private void onSubmit() {
+    private void handleSubmit() {
         String guess = inputField.getText().trim().toUpperCase();
-        if (guess.length() != WORD_LENGTH) {
-            showAlert("Invalid input", "Please enter a " + WORD_LENGTH + "-letter word.");
+
+        if (guess.length() != wordLength) {
+            messageLabel.setText("Guess must be exactly " + wordLength + " letters.");
             return;
         }
-        synchronized (lock) {
-            userInput = guess;
-            lock.notify();
+
+        if (game == null) {
+            messageLabel.setText("Game not initialized.");
+            return;
         }
-        inputField.clear();
-    }
 
-    private void showAlert(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
-            alert.setHeaderText(null);
-            alert.setTitle(title);
-            alert.showAndWait();
-        });
-    }
+        feedback fb = game.checkGuess(guess.toLowerCase());
 
-   
-    public String getUserInput() {
-        synchronized (lock) {
-            userInput = null;
-            try {
-                while (userInput == null) {
-                    lock.wait();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return userInput;
+        if (fb == null) {
+            messageLabel.setText("Invalid guess or no attempts left.");
+            return;
         }
-    }
 
-    /**
-     * Shows the guess with color feedback: green (correct pos), yellow (wrong pos), gray (absent).
-     */
-    public void displayFeedback(feedback fb) {
-       Platform.runLater(() -> {
-        char[] result = fb.getResult();
-        String guess = fb.getGuess();
+        char[] results = fb.getResult();
 
-        for (int i = 0; i < WORD_LENGTH; i++) {
-            Label label = (Label) getNodeFromGridPane(guessesGrid, i, currentAttempt);
-            label.setText(String.valueOf(guess.charAt(i)));
+        // Update grid
+        for (int i = 0; i < wordLength; i++) {
+            Label lbl = letterLabels[currentRow][i];
+            char letter = guess.charAt(i);
+            lbl.setText(String.valueOf(letter));
 
-            switch (result[i]) {
+            switch (results[i]) {
                 case 'G':
-                    label.setStyle("-fx-background-color: green; -fx-text-fill: white; -fx-border-color: gray; -fx-border-width: 2;");
+                    lbl.setStyle("-fx-background-color: green; -fx-text-fill: white; -fx-border-color: black; -fx-border-width: 2px;");
+                    updateKeyColor(letter, 'G');
                     break;
                 case 'Y':
-                    label.setStyle("-fx-background-color: yellow; -fx-text-fill: black; -fx-border-color: gray; -fx-border-width: 2;");
+                    lbl.setStyle("-fx-background-color: gold; -fx-text-fill: black; -fx-border-color: black; -fx-border-width: 2px;");
+                    updateKeyColor(letter, 'Y');
                     break;
                 default:
-                    label.setStyle("-fx-background-color: gray; -fx-text-fill: white; -fx-border-color: gray; -fx-border-width: 2;");
+                    lbl.setStyle("-fx-background-color: lightgray; -fx-text-fill: black; -fx-border-color: black; -fx-border-width: 2px;");
+                    updateKeyColor(letter, '-');
                     break;
             }
         }
-        currentAttempt++;
-    });
-}
 
-    private javafx.scene.Node getNodeFromGridPane(GridPane gridPane, int col, int row) {
-        for (javafx.scene.Node node : gridPane.getChildren()) {
-            if (GridPane.getColumnIndex(node) == col && GridPane.getRowIndex(node) == row) {
-                return node;
+        currentRow++;
+        inputField.clear();
+
+        if (game.isCorrectGuess(guess.toLowerCase())) {
+            messageLabel.setText("Congratulations! You guessed the word.");
+            inputField.setDisable(true);
+            submitButton.setDisable(true);
+        } else if (game.isGameOver()) {
+            messageLabel.setText("Game over! The word was: " + game.getSecretWord().toUpperCase());
+            inputField.setDisable(true);
+            submitButton.setDisable(true);
+        } else {
+            messageLabel.setText("Attempts left: " + (maxAttempts - game.getCurrentAttempt()));
+        }
+    }
+
+    private void updateKeyColor(char letter, char feedbackChar) {
+        Button keyButton = keyboardButtons.get(letter);
+        if (keyButton == null) return;
+
+        // Priority order: Green > Yellow > Gray
+        String currentStyle = keyButton.getStyle();
+
+        if (feedbackChar == 'G') {
+            // Green is highest priority, always override
+            keyButton.setStyle("-fx-background-color: green; -fx-text-fill: white;");
+        } else if (feedbackChar == 'Y') {
+            // Yellow if not already green
+            if (!currentStyle.contains("green")) {
+                keyButton.setStyle("-fx-background-color: gold; -fx-text-fill: black;");
+            }
+        } else {
+            // Gray only if not green or yellow
+            if (!currentStyle.contains("green") && !currentStyle.contains("gold")) {
+                keyButton.setStyle("-fx-background-color: lightgray; -fx-text-fill: black;");
             }
         }
-        return null;
     }
 
     public void displayIntro() {
-        Platform.runLater(() -> statusLabel.setText("Welcome! Guess the " + WORD_LENGTH + "-letter word."));
-    }
-
-    public void displayWin() {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Congratulations! You guessed the word!", ButtonType.OK);
-            alert.setTitle("You Win!");
-            alert.setHeaderText(null);
-            alert.showAndWait();
-            statusLabel.setText("You Win!");
-            inputField.setDisable(true);
-            submitButton.setDisable(true);
-        });
-    }
-
-    public void displayLose(String correctWord) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Game Over! The correct word was: " + correctWord, ButtonType.OK);
-            alert.setTitle("You Lose!");
-            alert.setHeaderText(null);
-            alert.showAndWait();
-            statusLabel.setText("Game Over! Word was: " + correctWord);
-            inputField.setDisable(true);
-            submitButton.setDisable(true);
-        });
+        messageLabel.setText("WORDLE.");
     }
 }
+
+
